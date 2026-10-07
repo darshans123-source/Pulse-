@@ -1,0 +1,6 @@
+{
+  "name": "Pulse Social",
+  "description": "A modern, high-performance social platform featuring live community feeds, stories, rich multi-format post creation, bookmarks, direct messaging, and trending channels.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
