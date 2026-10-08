@@ -123,12 +123,31 @@ export const StoryModal: React.FC<StoryModalProps> = ({
         onTouchStart={() => setIsPaused(true)}
         onTouchEnd={() => setIsPaused(false)}
       >
-        {/* Dynamic Background Gradient */}
-        <div className={`absolute inset-0 bg-gradient-to-br ${currentItem.gradient} opacity-90`} />
-        <div className="absolute inset-0 bg-neutral-950/40 backdrop-blur-[2px]" />
+        {/* Dynamic Background Image or Gradient */}
+        {currentItem.mediaUrl ? (
+          <div className="absolute inset-0 bg-neutral-950">
+            <img
+              src={currentItem.mediaUrl}
+              alt={currentItem.headline}
+              className="h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
+          </div>
+        ) : (
+          <>
+            <div className={`absolute inset-0 bg-gradient-to-br ${currentItem.gradient} opacity-90`} />
+            <div className="absolute inset-0 bg-neutral-950/40 backdrop-blur-[2px]" />
+          </>
+        )}
+
+        {/* Invisible Tap Zones: Left 30% for prev, Right 70% for next */}
+        <div className="absolute inset-0 z-0 flex">
+          <div className="h-full w-1/3 cursor-pointer" onClick={handlePrev} />
+          <div className="h-full w-2/3 cursor-pointer" onClick={handleNext} />
+        </div>
 
         {/* Story Header & Multi-item Progress Bars */}
-        <div className="relative z-10 p-4 space-y-3 bg-gradient-to-b from-black/60 to-transparent">
+        <div className="relative z-10 p-4 space-y-3 bg-gradient-to-b from-black/60 to-transparent pointer-events-auto">
           {/* Progress Indicators */}
           <div className="flex gap-1.5">
             {story.items.map((item, idx) => {
@@ -150,16 +169,22 @@ export const StoryModal: React.FC<StoryModalProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div
-                className={`flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr ${story.author.avatarGradient} text-xs font-bold text-white shadow-sm`}
+                className={`flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr ${story.author.avatarGradient} text-xs font-bold text-white shadow-sm ring-1 ring-white/40`}
               >
                 {story.author.avatarInitials}
               </div>
               <div>
-                <div className="text-xs font-semibold text-white">
+                <div className="text-xs font-semibold text-white drop-shadow">
                   {story.author.name}
                 </div>
-                <div className="text-[11px] text-white/70">
-                  {currentItem.timestamp}
+                <div className="text-[11px] text-white/80 drop-shadow flex items-center gap-1">
+                  <span>{currentItem.timestamp}</span>
+                  {currentItem.location && (
+                    <>
+                      <span>·</span>
+                      <span>{currentItem.location}</span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -167,12 +192,12 @@ export const StoryModal: React.FC<StoryModalProps> = ({
         </div>
 
         {/* Center Content */}
-        <div className="relative z-10 flex flex-1 flex-col items-center justify-center p-8 text-center">
-          <div className="max-w-xs space-y-4">
-            <h2 className="font-display text-2xl font-bold text-white drop-shadow-md">
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-end p-8 text-center pointer-events-none pb-4">
+          <div className="max-w-xs space-y-2 bg-black/40 backdrop-blur-md rounded-2xl p-4 border border-white/10">
+            <h2 className="font-display text-xl font-bold text-white drop-shadow-md">
               {currentItem.headline}
             </h2>
-            <p className="text-sm font-medium leading-relaxed text-neutral-200 drop-shadow">
+            <p className="text-xs font-medium leading-relaxed text-neutral-200 drop-shadow">
               {currentItem.subtext}
             </p>
           </div>

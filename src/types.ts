@@ -2,6 +2,7 @@ export interface User {
   id: string;
   name: string;
   handle: string;
+  avatarUrl?: string;
   avatarGradient: string;
   avatarInitials: string;
   bio: string;
@@ -14,6 +15,7 @@ export interface User {
   joinedDate: string;
   isFollowing?: boolean;
   isVerified?: boolean;
+  isPrivate?: boolean;
   demonstratedSkills?: string[];
   activityHighlights?: string[];
 }
@@ -75,12 +77,15 @@ export interface CodeSnippet {
 }
 
 export interface PostMedia {
-  type: 'gradient' | 'quote' | 'code' | 'abstract';
+  type: 'image' | 'video' | 'gradient' | 'quote' | 'code' | 'abstract';
+  url?: string;
+  thumbnailUrl?: string;
   gradient?: string;
   title?: string;
   subtitle?: string;
   quoteAuthor?: string;
   codeSnippet?: CodeSnippet;
+  aspectRatio?: 'square' | 'portrait' | 'landscape';
 }
 
 export interface Post {
@@ -90,6 +95,7 @@ export interface Post {
   tags: string[];
   media?: PostMedia;
   poll?: Poll;
+  location?: string;
   createdAt: string;
   likesCount: number;
   commentsCount: number;
@@ -105,10 +111,13 @@ export interface Post {
 
 export interface StoryItem {
   id: string;
+  mediaType?: 'gradient' | 'image';
+  mediaUrl?: string;
   gradient: string;
   headline: string;
   subtext: string;
   timestamp: string;
+  location?: string;
 }
 
 export interface Story {
@@ -116,6 +125,23 @@ export interface Story {
   author: User;
   items: StoryItem[];
   hasUnseen: boolean;
+}
+
+export interface Reel {
+  id: string;
+  author: User;
+  videoUrl: string;
+  posterUrl?: string;
+  caption: string;
+  musicTrack: string;
+  likesCount: number;
+  commentsCount: number;
+  sharesCount: number;
+  isLiked: boolean;
+  isBookmarked: boolean;
+  tags: string[];
+  comments: Comment[];
+  createdAt: string;
 }
 
 export interface Channel {
@@ -130,7 +156,7 @@ export interface Channel {
 
 export interface Notification {
   id: string;
-  type: 'like' | 'comment' | 'follow' | 'repost' | 'mention';
+  type: 'like' | 'comment' | 'follow' | 'repost' | 'mention' | 'story';
   actor: User;
   postId?: string;
   postSnippet?: string;
@@ -143,7 +169,10 @@ export interface Message {
   senderId: string;
   recipientId: string;
   text: string;
+  imageUrl?: string;
   timestamp: string;
+  status?: 'sent' | 'delivered' | 'read';
+  readAt?: string;
 }
 
 export interface Conversation {
@@ -151,4 +180,5 @@ export interface Conversation {
   participant: User;
   messages: Message[];
   unreadCount: number;
+  isOnline?: boolean;
 }

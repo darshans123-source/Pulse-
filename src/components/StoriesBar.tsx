@@ -24,17 +24,25 @@ export const StoriesBar: React.FC<StoriesBarProps> = ({
           className="group flex flex-col items-center gap-1.5 shrink-0 focus:outline-none"
         >
           <div className="relative">
-            <div
-              className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr ${currentUser.avatarGradient} text-sm font-bold text-white shadow-md transition-transform group-hover:scale-105`}
-            >
-              {currentUser.avatarInitials}
-            </div>
-            <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-neutral-900 bg-indigo-600 text-white shadow-sm">
+            {currentUser.avatarUrl ? (
+              <img
+                src={currentUser.avatarUrl}
+                alt={currentUser.name}
+                className="h-14 w-14 rounded-full object-cover shadow-md transition-transform group-hover:scale-105 ring-2 ring-neutral-800"
+              />
+            ) : (
+              <div
+                className={`flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr ${currentUser.avatarGradient} text-sm font-bold text-white shadow-md transition-transform group-hover:scale-105`}
+              >
+                {currentUser.avatarInitials}
+              </div>
+            )}
+            <div className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-neutral-900 bg-indigo-600 text-white shadow-sm">
               <Plus className="h-3 w-3 stroke-[3]" />
             </div>
           </div>
           <span className="w-16 truncate text-center text-[11px] font-medium text-neutral-300">
-            Add Story
+            Your Story
           </span>
         </button>
 
@@ -48,20 +56,28 @@ export const StoriesBar: React.FC<StoriesBarProps> = ({
               className="group flex flex-col items-center gap-1.5 shrink-0 focus:outline-none"
             >
               <div
-                className={`p-0.5 rounded-2xl transition-transform group-hover:scale-105 ${
+                className={`p-0.5 rounded-full transition-transform group-hover:scale-105 ${
                   story.hasUnseen
                     ? 'bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 shadow-sm shadow-indigo-500/20'
                     : 'border border-neutral-700 bg-neutral-800/50'
                 }`}
               >
-                <div
-                  className={`flex h-13 w-13 items-center justify-center rounded-[14px] bg-gradient-to-tr ${story.author.avatarGradient} text-sm font-bold text-white`}
-                >
-                  {story.author.avatarInitials}
-                </div>
+                {story.author.avatarUrl ? (
+                  <img
+                    src={story.author.avatarUrl}
+                    alt={story.author.name}
+                    className="h-13 w-13 rounded-full object-cover border-2 border-neutral-950"
+                  />
+                ) : (
+                  <div
+                    className={`flex h-13 w-13 items-center justify-center rounded-full bg-gradient-to-tr ${story.author.avatarGradient} text-xs font-bold text-white border-2 border-neutral-950`}
+                  >
+                    {story.author.avatarInitials}
+                  </div>
+                )}
               </div>
               <span className="w-16 truncate text-center text-[11px] font-medium text-neutral-300">
-                {isCurrentUser ? 'Your Story' : story.author.name.split(' ')[0]}
+                {isCurrentUser ? 'You' : story.author.name.split(' ')[0]}
               </span>
             </button>
           );

@@ -1,12 +1,12 @@
 import React from 'react';
-import { Home, Compass, Plus, MessageSquare, User as UserIcon } from 'lucide-react';
+import { Home, Compass, Plus, MessageSquare, User as UserIcon, Film } from 'lucide-react';
 import { User } from '../types';
 import { sound } from '../utils/soundEngine';
 
 interface BottomNavProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  currentUser: User;
+  currentUser: User | null;
   onOpenComposer: () => void;
   onSelectProfile: (user: User) => void;
   unreadMessagesCount: number;
@@ -30,25 +30,25 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             setActiveTab('feed');
           }}
           className={`flex min-h-[44px] min-w-[44px] flex-col items-center justify-center transition-colors ${
-            activeTab === 'feed' ? 'text-indigo-400' : 'text-neutral-400 hover:text-white'
+            activeTab === 'feed' ? 'text-indigo-400 font-semibold' : 'text-neutral-400 hover:text-white'
           }`}
         >
           <Home className="h-5 w-5" />
-          <span className="text-[10px] font-medium tracking-tight mt-1">Feed</span>
+          <span className="text-[10px] tracking-tight mt-1">Feed</span>
         </button>
 
-        {/* Tab 2: Explore */}
+        {/* Tab 2: Reels */}
         <button
           onClick={() => {
             sound.playClick();
-            setActiveTab('explore');
+            setActiveTab('reels');
           }}
           className={`flex min-h-[44px] min-w-[44px] flex-col items-center justify-center transition-colors ${
-            activeTab === 'explore' ? 'text-indigo-400' : 'text-neutral-400 hover:text-white'
+            activeTab === 'reels' ? 'text-indigo-400 font-semibold' : 'text-neutral-400 hover:text-white'
           }`}
         >
-          <Compass className="h-5 w-5" />
-          <span className="text-[10px] font-medium tracking-tight mt-1">Explore</span>
+          <Film className="h-5 w-5" />
+          <span className="text-[10px] tracking-tight mt-1">Reels</span>
         </button>
 
         {/* Tab 3: Action: Create Post */}
@@ -71,33 +71,47 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             setActiveTab('messages');
           }}
           className={`relative flex min-h-[44px] min-w-[44px] flex-col items-center justify-center transition-colors ${
-            activeTab === 'messages' ? 'text-indigo-400' : 'text-neutral-400 hover:text-white'
+            activeTab === 'messages' ? 'text-indigo-400 font-semibold' : 'text-neutral-400 hover:text-white'
           }`}
         >
           <MessageSquare className="h-5 w-5" />
+          <span className="text-[10px] tracking-tight mt-1">Messages</span>
           {unreadMessagesCount > 0 && (
             <span className="absolute top-2 right-4 flex h-2 w-2 rounded-full bg-indigo-500" />
           )}
-          <span className="text-[10px] font-medium tracking-tight mt-1">Chat</span>
         </button>
 
         {/* Tab 5: Profile */}
         <button
           onClick={() => {
             sound.playClick();
-            onSelectProfile(currentUser);
-            setActiveTab('profile');
+            if (currentUser) {
+              onSelectProfile(currentUser);
+              setActiveTab('profile');
+            }
           }}
           className={`flex min-h-[44px] min-w-[44px] flex-col items-center justify-center transition-colors ${
-            activeTab === 'profile' ? 'text-indigo-400' : 'text-neutral-400 hover:text-white'
+            activeTab === 'profile' ? 'text-indigo-400 font-semibold' : 'text-neutral-400 hover:text-white'
           }`}
         >
-          <div
-            className={`flex h-5 w-5 items-center justify-center rounded-md bg-gradient-to-tr ${currentUser.avatarGradient} text-[9px] font-bold text-white`}
-          >
-            {currentUser.avatarInitials}
-          </div>
-          <span className="text-[10px] font-medium tracking-tight mt-1">Profile</span>
+          {currentUser ? (
+            currentUser.avatarUrl ? (
+              <img
+                src={currentUser.avatarUrl}
+                alt={currentUser.name}
+                className="h-5 w-5 rounded-md object-cover ring-1 ring-neutral-700"
+              />
+            ) : (
+              <div
+                className={`flex h-5 w-5 items-center justify-center rounded-md bg-gradient-to-tr ${currentUser.avatarGradient} text-[9px] font-bold text-white`}
+              >
+                {currentUser.avatarInitials}
+              </div>
+            )
+          ) : (
+            <UserIcon className="h-5 w-5" />
+          )}
+          <span className="text-[10px] tracking-tight mt-1">Profile</span>
         </button>
       </div>
     </nav>

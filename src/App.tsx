@@ -6,9 +6,21 @@ import {
   SEED_STORIES, 
   SEED_CHANNELS, 
   SEED_NOTIFICATIONS, 
-  SEED_CONVERSATIONS 
+  SEED_CONVERSATIONS,
+  SEED_REELS
 } from './data/seedData';
-import { User, Post, Story, StoryItem, Channel, Notification, Conversation, Comment } from './types';
+import { 
+  User, 
+  Post, 
+  Story, 
+  StoryItem, 
+  Channel, 
+  Notification, 
+  Conversation, 
+  Comment,
+  Reel,
+  Message 
+} from './types';
 import { Navbar } from './components/Navbar';
 import { LeftSidebar } from './components/LeftSidebar';
 import { RightSidebar } from './components/RightSidebar';
@@ -24,21 +36,37 @@ import { MessagesView } from './components/MessagesView';
 import { ProfileView } from './components/ProfileView';
 import { NotificationsModal } from './components/NotificationsModal';
 import { BottomNav } from './components/BottomNav';
-import { Bookmark, Sparkles, Filter } from 'lucide-react';
+import { ReelsView } from './components/ReelsView';
+import { AuthModal } from './components/AuthModal';
+import { SettingsModal } from './components/SettingsModal';
+import { PostDetailModal } from './components/PostDetailModal';
+import { LoginPage } from './components/LoginPage';
+import { 
+  getStoredActiveUser, 
+  setStoredActiveUser, 
+  clearStoredActiveUser 
+} from './utils/authStorage';
+import { Bookmark, Sparkles, Filter, Loader2, RefreshCw } from 'lucide-react';
 import { sound } from './utils/soundEngine';
 
 export default function App() {
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'feed' | 'explore' | 'channels' | 'bookmarks' | 'messages' | 'profile'>('feed');
+  const [activeTab, setActiveTab] = useState<'feed' | 'reels' | 'explore' | 'channels' | 'bookmarks' | 'messages' | 'profile'>('feed');
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | undefined>(undefined);
 
-  // Entities State
-  const [currentUser, setCurrentUser] = useState<User>(CURRENT_USER);
+  // User Authentication State from Local Store
+  const [currentUser, setCurrentUser] = useState<User>(() => {
+    return getStoredActiveUser() || CURRENT_USER;
+  });
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    return !!getStoredActiveUser();
+  });
   const [users, setUsers] = useState<User[]>(SEED_USERS);
   const [posts, setPosts] = useState<Post[]>(SEED_POSTS);
   const [stories, setStories] = useState<Story[]>(SEED_STORIES);
+  const [reels, setReels] = useState<Reel[]>(SEED_REELS);
   const [channels, setChannels] = useState<Channel[]>(SEED_CHANNELS);
   const [notifications, setNotifications] = useState<Notification[]>(SEED_NOTIFICATIONS);
   const [conversations, setConversations] = useState<Conversation[]>(SEED_CONVERSATIONS);
@@ -48,14 +76,21 @@ export default function App() {
   const [activeStory, setActiveStory] = useState<Story | null>(null);
   const [isAddStoryOpen, setIsAddStoryOpen] = useState(false);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [activeCommentsPost, setActiveCommentsPost] = useState<Post | null>(null);
+  const [selectedPostDetail, setSelectedPostDetail] = useState<Post | null>(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Infinite Scroll / Feed Pagination Simulation
+  const [feedLimit, setFeedLimit] = useState(4);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Keyboard shortcut listener for fast "real-feel" UX
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept if user is typing in input or textarea
       const target = e.target as HTMLElement;
       const isInput = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable;
 
@@ -66,13 +101,18 @@ export default function App() {
         sound.playClick();
       } else if (e.key === 'Escape') {
         setIsComposerOpen(false);
+        setEditingPost(null);
         setActiveStory(null);
         setIsAddStoryOpen(false);
         setActiveCommentsPost(null);
+        setSelectedPostDetail(null);
         setIsNotificationsOpen(false);
+        setIsAuthModalOpen(false);
+        setIsSettingsOpen(false);
       } else if (!isInput && (e.key === 'c' || e.key === 'C')) {
         e.preventDefault();
         sound.playClick();
+        setEditingPost(null);
         setIsComposerOpen(true);
       }
     };
@@ -93,7 +133,45 @@ export default function App() {
   // Switch persona helper
   const handleSwitchUser = (user: User) => {
     setCurrentUser(user);
-    showToast(`Switched persona to ${user.name}`);
+    setStoredActiveUser(user);
+    showToast(`Switched active profile to ${user.name}`);
+  };
+
+  // User Auth Handlers with Local Store Integration
+  const handleLoginFromPage = (user: User) => {
+    setCurrentUser(user);
+    setIsLoggedIn(true);
+    setStoredActiveUser(user);
+    setUsers((prev) => (prev.some((u) => u.id === user.id) ? prev : [user, ...prev]));
+    showToast(`Welcome back, ${user.name}!`);
+  };
+
+  const handleLogin = (user: User) => {
+    setCurrentUser(user);
+    setIsLoggedIn(true);
+    setStoredActiveUser(user);
+    showToast(`Welcome back, ${user.name}!`);
+  };
+
+  const handleSignUp = (newUser: User) => {
+    setUsers((prev) => [newUser, ...prev]);
+    setCurrentUser(newUser);
+    setIsLoggedIn(true);
+    setStoredActiveUser(newUser);
+    showToast(`Welcome to Pulse Social, ${newUser.name}!`);
+  };
+
+  const handleLogout = () => {
+    clearStoredActiveUser();
+    setIsLoggedIn(false);
+    showToast('Signed out of local store');
+  };
+
+  const handleUpdateCurrentUser = (updatedUser: User) => {
+    setCurrentUser(updatedUser);
+    setStoredActiveUser(updatedUser);
+    setUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
+    showToast('Profile updated in local store');
   };
 
   // Toggle follow user
@@ -195,6 +273,64 @@ export default function App() {
     );
   };
 
+  // Delete own post
+  const handleDeletePost = (postId: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+    setCurrentUser((prev) => ({ ...prev, postsCount: Math.max(0, prev.postsCount - 1) }));
+    if (selectedPostDetail?.id === postId) setSelectedPostDetail(null);
+    showToast('Pulse deleted successfully');
+  };
+
+  // Edit own post
+  const handleEditPost = (post: Post) => {
+    setEditingPost(post);
+    setIsComposerOpen(true);
+  };
+
+  const handleUpdatePost = (updated: Post) => {
+    setPosts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    setEditingPost(null);
+    setIsComposerOpen(false);
+    showToast('Pulse updated successfully');
+  };
+
+  // Reels interactions
+  const handleLikeReel = (reelId: string) => {
+    setReels((prev) =>
+      prev.map((r) => {
+        if (r.id === reelId) {
+          const willLike = !r.isLiked;
+          return {
+            ...r,
+            isLiked: willLike,
+            likesCount: willLike ? r.likesCount + 1 : Math.max(0, r.likesCount - 1),
+          };
+        }
+        return r;
+      })
+    );
+  };
+
+  const handleBookmarkReel = (reelId: string) => {
+    setReels((prev) =>
+      prev.map((r) => {
+        if (r.id === reelId) {
+          const willBookmark = !r.isBookmarked;
+          showToast(willBookmark ? 'Reel saved to bookmarks' : 'Reel removed from bookmarks');
+          return { ...r, isBookmarked: willBookmark };
+        }
+        return r;
+      })
+    );
+  };
+
+  const handleShareReel = (reel: Reel) => {
+    navigator.clipboard.writeText(
+      `${window.location.origin}/#reel-${reel.id} — "${reel.caption.slice(0, 60)}..."`
+    );
+    showToast('Reel link copied to clipboard');
+  };
+
   // Invite helper to Intent Circle
   const handleInviteHelper = (postId: string, helperUserId: string) => {
     setPosts((prev) =>
@@ -218,7 +354,6 @@ export default function App() {
     const helperUser = [CURRENT_USER, ...users].find((u) => u.id === helperUserId);
     showToast(`Invited ${helperUser?.name || 'specialist'} to Intent Circle`);
 
-    // Create live notification for the invited helper
     const newNotif: Notification = {
       id: `notif_invite_${Date.now()}`,
       type: 'mention',
@@ -277,6 +412,9 @@ export default function App() {
           if (activeCommentsPost?.id === postId) {
             setActiveCommentsPost(updatedPost);
           }
+          if (selectedPostDetail?.id === postId) {
+            setSelectedPostDetail(updatedPost);
+          }
           return updatedPost;
         }
         return p;
@@ -304,6 +442,9 @@ export default function App() {
           const updatedPost = { ...p, comments: updatedComments };
           if (activeCommentsPost?.id === postId) {
             setActiveCommentsPost(updatedPost);
+          }
+          if (selectedPostDetail?.id === postId) {
+            setSelectedPostDetail(updatedPost);
           }
           return updatedPost;
         }
@@ -362,14 +503,17 @@ export default function App() {
     showToast('Published to your story');
   };
 
-  // Direct message send
-  const handleSendMessage = (recipientId: string, text: string) => {
-    const newMsg = {
-      id: `msg_${Date.now()}`,
+  // Direct message send with image attachment and visual feedback for sender
+  const handleSendMessage = (recipientId: string, text: string, imageUrl?: string) => {
+    const msgId = `msg_${Date.now()}`;
+    const newMsg: Message = {
+      id: msgId,
       senderId: currentUser.id,
       recipientId,
       text,
+      imageUrl,
       timestamp: 'Just now',
+      status: 'sent',
     };
 
     setConversations((prev) => {
@@ -381,7 +525,7 @@ export default function App() {
             : c
         );
       } else {
-        const targetUser = users.find((u) => u.id === recipientId) || CURRENT_USER;
+        const targetUser = users.find((u) => u.id === recipientId) || users[0];
         return [
           {
             id: `conv_${Date.now()}`,
@@ -394,6 +538,61 @@ export default function App() {
       }
     });
     showToast('Message sent');
+
+    // Visual feedback for sender:
+    // 1. Progress to delivered in 700ms
+    setTimeout(() => {
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.participant.id === recipientId) {
+            return {
+              ...c,
+              messages: c.messages.map((m) =>
+                m.id === msgId ? { ...m, status: 'delivered' } : m
+              ),
+            };
+          }
+          return c;
+        })
+      );
+    }, 700);
+
+    // 2. Progress to read with visual feedback in 1800ms
+    setTimeout(() => {
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.participant.id === recipientId) {
+            return {
+              ...c,
+              messages: c.messages.map((m) =>
+                m.id === msgId ? { ...m, status: 'read', readAt: 'Just now' } : m
+              ),
+            };
+          }
+          return c;
+        })
+      );
+    }, 1800);
+  };
+
+  const handleMarkConversationRead = (convId: string) => {
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id === convId) {
+          return {
+            ...c,
+            unreadCount: 0,
+            messages: c.messages.map((m) =>
+              m.senderId === currentUser.id
+                ? { ...m, status: 'read', readAt: m.readAt || 'Just now' }
+                : m
+            ),
+          };
+        }
+        return c;
+      })
+    );
+    showToast('Read receipts updated with visual feedback');
   };
 
   // Select creator profile
@@ -425,6 +624,17 @@ export default function App() {
     showToast('All notifications marked as read');
   };
 
+  // Infinite Scroll "Load More" Simulation
+  const handleLoadMore = () => {
+    setIsLoadingMore(true);
+    sound.playClick();
+    setTimeout(() => {
+      setFeedLimit((prev) => prev + 4);
+      setIsLoadingMore(false);
+      showToast('Loaded more pulses');
+    }, 600);
+  };
+
   // Filter feed pulses based on activeFilter and searchQuery
   const filteredFeedPosts = posts.filter((post) => {
     if (searchQuery.trim()) {
@@ -454,7 +664,9 @@ export default function App() {
     return true;
   });
 
-  // Calculate posts specifically seeking current user's demonstrated expertise
+  const displayedFeedPosts = filteredFeedPosts.slice(0, feedLimit);
+  const hasMorePosts = feedLimit < filteredFeedPosts.length;
+
   const intentSeekingPosts = posts.filter(
     (p) =>
       p.intent?.isIntentCircleActive &&
@@ -463,6 +675,10 @@ export default function App() {
   );
 
   const bookmarkedPosts = posts.filter((p) => p.isBookmarked);
+
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={handleLoginFromPage} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-neutral-100 flex flex-col antialiased selection:bg-indigo-500/30 selection:text-indigo-200">
@@ -474,7 +690,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Top Bar Contract Compliant Navigation */}
+      {/* Top Bar Navigation */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={(tab) => {
@@ -484,11 +700,17 @@ export default function App() {
         currentUser={currentUser}
         unreadNotificationsCount={unreadNotificationsCount}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
-        onOpenComposer={() => setIsComposerOpen(true)}
+        onOpenComposer={() => {
+          setEditingPost(null);
+          setIsComposerOpen(true);
+        }}
         onSelectProfile={(u) => handleSelectProfile(u)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
       />
 
-      {/* Main Viewport Grid Layout: Desktop baseline 1440px wide */}
+      {/* Main Viewport Grid Layout */}
       <main className="mx-auto flex-1 w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
           
@@ -507,15 +729,18 @@ export default function App() {
                 setActiveTab(tab as any);
               }}
               channels={channels}
-              availableUsers={[CURRENT_USER, ...users]}
+              availableUsers={[currentUser, ...users.filter((u) => u.id !== currentUser.id)]}
               onSwitchUser={handleSwitchUser}
               onSelectProfile={handleSelectProfile}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              onLogout={handleLogout}
             />
           </div>
 
-          {/* Center Column: Primary Work Area & Feed (6 cols) */}
+          {/* Center Column: Primary Work Area & Views (6 cols) */}
           <div className="col-span-1 lg:col-span-6 space-y-6">
-            {/* View Switching */}
+            
+            {/* 1. Feed View */}
             {activeTab === 'feed' && (
               <>
                 {/* Stories Reel */}
@@ -525,6 +750,51 @@ export default function App() {
                   onOpenStory={(s) => setActiveStory(s)}
                   onAddStory={() => setIsAddStoryOpen(true)}
                 />
+
+                {/* Feed Header Tabs: For You vs Following */}
+                <div className="flex items-center justify-between border-b border-neutral-800/80 pb-2">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        setActiveFilter('all');
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                        activeFilter === 'all'
+                          ? 'bg-neutral-800 text-white shadow-sm'
+                          : 'text-neutral-400 hover:text-neutral-200'
+                      }`}
+                    >
+                      For You
+                    </button>
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        setActiveFilter('following');
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                        activeFilter === 'following'
+                          ? 'bg-neutral-800 text-white shadow-sm'
+                          : 'text-neutral-400 hover:text-neutral-200'
+                      }`}
+                    >
+                      Following
+                    </button>
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        setActiveFilter('intent_circles');
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                        activeFilter === 'intent_circles'
+                          ? 'bg-indigo-950/60 border border-indigo-500/40 text-indigo-300'
+                          : 'text-neutral-400 hover:text-neutral-200'
+                      }`}
+                    >
+                      ⚡ Help Circles
+                    </button>
+                  </div>
+                </div>
 
                 {/* Inline Post Composer */}
                 <PostComposer
@@ -564,12 +834,12 @@ export default function App() {
 
                 {/* Posts Feed */}
                 <div className="space-y-4">
-                  {filteredFeedPosts.length === 0 ? (
+                  {displayedFeedPosts.length === 0 ? (
                     <div className="rounded-2xl border border-neutral-800/80 bg-neutral-900/30 p-12 text-center text-xs text-neutral-500">
                       No pulses match your current filter. Try selecting "For You" or clearing the search.
                     </div>
                   ) : (
-                    filteredFeedPosts.map((post) => (
+                    displayedFeedPosts.map((post) => (
                       <PostCard
                         key={post.id}
                         post={post}
@@ -583,13 +853,55 @@ export default function App() {
                         onSelectProfile={handleSelectProfile}
                         onShare={handleShare}
                         onInviteHelper={handleInviteHelper}
+                        onDeletePost={handleDeletePost}
+                        onEditPost={handleEditPost}
                       />
                     ))
+                  )}
+
+                  {/* Infinite Scroll / Load More Action */}
+                  {hasMorePosts && (
+                    <div className="pt-2 text-center">
+                      <button
+                        onClick={handleLoadMore}
+                        disabled={isLoadingMore}
+                        className="inline-flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/60 px-5 py-2.5 text-xs font-semibold text-neutral-300 hover:border-neutral-700 hover:text-white transition-colors"
+                      >
+                        {isLoadingMore ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-400" />
+                            <span>Loading more pulses...</span>
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-3.5 w-3.5" />
+                            <span>Load More Pulses</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   )}
                 </div>
               </>
             )}
 
+            {/* 2. Reels View */}
+            {activeTab === 'reels' && (
+              <div className="py-2">
+                <ReelsView
+                  reels={reels}
+                  currentUser={currentUser}
+                  onLikeReel={handleLikeReel}
+                  onBookmarkReel={handleBookmarkReel}
+                  onShareReel={handleShareReel}
+                  onOpenComments={(p) => setActiveCommentsPost(p)}
+                  onSelectProfile={handleSelectProfile}
+                  onToggleFollow={handleToggleFollow}
+                />
+              </div>
+            )}
+
+            {/* 3. Explore View */}
             {activeTab === 'explore' && (
               <ExploreView
                 posts={posts}
@@ -602,10 +914,13 @@ export default function App() {
                 onSelectTag={handleSelectTag}
                 onSelectProfile={handleSelectProfile}
                 onShare={handleShare}
+                onSelectPostDetail={(p) => setSelectedPostDetail(p)}
+                onToggleFollow={handleToggleFollow}
                 selectedTag={selectedTag}
               />
             )}
 
+            {/* 4. Channels View */}
             {activeTab === 'channels' && (
               <ChannelsView
                 channels={channels}
@@ -623,6 +938,7 @@ export default function App() {
               />
             )}
 
+            {/* 5. Bookmarks View */}
             {activeTab === 'bookmarks' && (
               <div className="space-y-4">
                 <div className="rounded-2xl border border-neutral-800/80 bg-neutral-900/40 p-5 backdrop-blur-sm">
@@ -656,21 +972,26 @@ export default function App() {
                       onSelectProfile={handleSelectProfile}
                       onShare={handleShare}
                       onInviteHelper={handleInviteHelper}
+                      onDeletePost={handleDeletePost}
+                      onEditPost={handleEditPost}
                     />
                   ))
                 )}
               </div>
             )}
 
+            {/* 6. Messages View */}
             {activeTab === 'messages' && (
               <MessagesView
                 conversations={conversations}
                 currentUser={currentUser}
                 onSendMessage={handleSendMessage}
                 onSelectProfile={handleSelectProfile}
+                onMarkConversationRead={handleMarkConversationRead}
               />
             )}
 
+            {/* 7. Profile View */}
             {activeTab === 'profile' && (
               <ProfileView
                 user={viewingProfileUser || currentUser}
@@ -678,9 +999,8 @@ export default function App() {
                 posts={posts}
                 onToggleFollow={handleToggleFollow}
                 onUpdateUser={(updated) => {
-                  setCurrentUser(updated);
+                  handleUpdateCurrentUser(updated);
                   setViewingProfileUser(updated);
-                  showToast('Profile updated');
                 }}
                 onLike={handleLikePost}
                 onBookmark={handleBookmarkPost}
@@ -690,6 +1010,9 @@ export default function App() {
                 onSelectTag={handleSelectTag}
                 onSelectProfile={handleSelectProfile}
                 onShare={handleShare}
+                onSelectPostDetail={(p) => setSelectedPostDetail(p)}
+                onDeletePost={handleDeletePost}
+                onEditPost={handleEditPost}
               />
             )}
           </div>
@@ -717,7 +1040,7 @@ export default function App() {
         </div>
       </main>
 
-      {/* Mobile Ergonomic Bottom Tab Bar (< 15% height cap compliant) */}
+      {/* Mobile Ergonomic Bottom Tab Bar */}
       <BottomNav
         activeTab={activeTab}
         setActiveTab={(t) => {
@@ -725,7 +1048,10 @@ export default function App() {
           setActiveTab(t as any);
         }}
         currentUser={currentUser}
-        onOpenComposer={() => setIsComposerOpen(true)}
+        onOpenComposer={() => {
+          setEditingPost(null);
+          setIsComposerOpen(true);
+        }}
         onSelectProfile={handleSelectProfile}
         unreadMessagesCount={conversations.reduce((sum, c) => sum + c.unreadCount, 0)}
       />
@@ -750,7 +1076,7 @@ export default function App() {
               setActiveStory(stories[currentIdx - 1]);
             }
           }}
-          onSendMessage={handleSendMessage}
+          onSendMessage={(recId, txt) => handleSendMessage(recId, txt)}
         />
       )}
 
@@ -765,14 +1091,19 @@ export default function App() {
 
       {/* Dedicated Floating Post Composer Modal */}
       {isComposerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-150">
           <div className="w-full max-w-lg">
             <PostComposer
               currentUser={currentUser}
               allUsers={[CURRENT_USER, ...users]}
               onAddPost={handleAddPost}
-              onClose={() => setIsComposerOpen(false)}
+              onClose={() => {
+                setIsComposerOpen(false);
+                setEditingPost(null);
+              }}
               isModal={true}
+              editingPost={editingPost || undefined}
+              onUpdatePost={handleUpdatePost}
             />
           </div>
         </div>
@@ -787,6 +1118,26 @@ export default function App() {
           onAddComment={handleAddComment}
           onLikeComment={handleLikeComment}
           onSelectProfile={handleSelectProfile}
+        />
+      )}
+
+      {/* Post Detail Lightbox Modal (from Explore Grid or Profile Grid) */}
+      {selectedPostDetail && (
+        <PostDetailModal
+          post={selectedPostDetail}
+          onClose={() => setSelectedPostDetail(null)}
+          currentUser={currentUser}
+          onLike={handleLikePost}
+          onBookmark={handleBookmarkPost}
+          onRepost={handleRepostPost}
+          onVotePoll={handleVotePoll}
+          onOpenComments={(p) => setActiveCommentsPost(p)}
+          onSelectTag={handleSelectTag}
+          onSelectProfile={handleSelectProfile}
+          onShare={handleShare}
+          onInviteHelper={handleInviteHelper}
+          onDeletePost={handleDeletePost}
+          onEditPost={handleEditPost}
         />
       )}
 
@@ -814,6 +1165,25 @@ export default function App() {
           }}
         />
       )}
+
+      {/* Auth Modal (Sign In, Sign Up, Forgot Password) */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLogin={handleLogin}
+        onSignUp={handleSignUp}
+      />
+
+      {/* Settings Modal (Account, Privacy, Notifications, Theme) */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        currentUser={currentUser}
+        onUpdateUser={(updated) => {
+          handleUpdateCurrentUser(updated);
+        }}
+        onLogout={handleLogout}
+      />
     </div>
   );
 }
