@@ -48,7 +48,8 @@ export const CommentsDrawer: React.FC<CommentsDrawerProps> = ({
         }),
       });
 
-      if (res.ok) {
+      const contentType = res.headers.get('content-type');
+      if (res.ok && contentType && contentType.includes('application/json')) {
         const data = await res.json();
         if (data.draftText) {
           setCommentText(data.draftText);
